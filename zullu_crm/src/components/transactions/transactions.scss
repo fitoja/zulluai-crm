@@ -1,0 +1,72 @@
+.transactions-page {
+  h2 {
+    margin-bottom: 20px;
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+
+  th,
+  td {
+    padding: 14px;
+    text-align: left;
+    font-size: 14px;
+  }
+
+  th {
+    background: #f3f4f6;
+    color: #555;
+  }
+
+  tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  tr:hover {
+    background: #f9fafb;
+  }
+}
+
+/* USER CELL */
+.user-cell {
+  display: flex;
+  flex-direction: column;
+
+  .name {
+    font-weight: 500;
+  }
+
+  .sub {
+    font-size: 12px;
+    color: #777;
+  }
+}
+
+/* STATUS BADGE */
+.status {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+/* SUCCESS */
+.status.success {
+  background: #e6f9f0;
+  color: #0f9d58;
+}
+
+/* FAILED (future safe) */
+.status.failed {
+  background: #fdecea;
+  color: #d93025;
+}
