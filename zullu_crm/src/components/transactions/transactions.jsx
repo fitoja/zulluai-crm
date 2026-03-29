@@ -8,7 +8,7 @@ const Transactions = () => {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch("http://localhost:4500/api/get-all-transactions");
+      const res = await fetch("https://api.zulluai.com/api/get-all-transactions");
       const data = await res.json();
 
       if (data.success) {
