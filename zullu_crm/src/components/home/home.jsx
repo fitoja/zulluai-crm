@@ -12,6 +12,12 @@ const Home = () => {
   const [showModal, setShowModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmCatDelete, setConfirmCatDelete] = useState(null); // New state for Category Delete
+  const [editVideo, setEditVideo] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    views: "",
+    category: "",
+  });
 
   const [toast, setToast] = useState(null);
 
@@ -171,6 +177,50 @@ const Home = () => {
     }
   };
 
+  const openEditModal = (video) => {
+    setEditVideo(video);
+    setEditForm({
+      title: video.title || "",
+      views: video.views || "0",
+      category: video.category || activeCategory || "",
+    });
+  };
+
+  const handleUpdateVideo = async (e) => {
+    e.preventDefault();
+
+    if (!editForm.title.trim() || !editForm.category) {
+      return showToast("Title and category are required", "error");
+    }
+
+    try {
+      const res = await fetch(
+        `https://api.zulluai.com/api/homeVideo/update/${editVideo.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: editForm.title,
+            views: editForm.views || "0",
+            category: editForm.category,
+          }),
+        }
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Video details updated");
+        setEditVideo(null);
+        setActiveCategory(editForm.category);
+        fetchVideos();
+      } else {
+        showToast(data.msg || "Update failed", "error");
+      }
+    } catch {
+      showToast("Error updating video", "error");
+    }
+  };
+
   return (
     <Layout>
       <div className="home-page">
@@ -227,6 +277,12 @@ const Home = () => {
                     <div className="bottom-row">
                       <span>{vid.views} views</span>
                       <button
+                        className="edit-btn"
+                        onClick={() => openEditModal(vid)}
+                      >
+                        Edit
+                      </button>
+                      <button
                         className="delete-btn"
                         onClick={() => setConfirmDelete(vid.id)}
                       >
@@ -280,6 +336,52 @@ const Home = () => {
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
+                    className="cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: EDIT VIDEO DETAILS */}
+        {editVideo && (
+          <div className="modal">
+            <div className="modal-content">
+              <h3>Edit Video Details</h3>
+              <form onSubmit={handleUpdateVideo}>
+                <input
+                  placeholder="Title"
+                  value={editForm.title}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, title: e.target.value })
+                  }
+                />
+                <input
+                  placeholder="Views (1.5K)"
+                  value={editForm.views}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, views: e.target.value })
+                  }
+                />
+                <select
+                  value={editForm.category}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, category: e.target.value })
+                  }
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <div className="actions">
+                  <button type="submit">Save Changes</button>
+                  <button
+                    type="button"
+                    onClick={() => setEditVideo(null)}
                     className="cancel"
                   >
                     Cancel

@@ -148,9 +148,20 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
       span {
         font-size: 12px;
         color: #aaa;
+        margin-right: auto;
+      }
+      .edit-btn {
+        background: #eef6ff;
+        border: 1px solid #cde8ff;
+        color: #1683d8;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
       }
       .delete-btn {
         background: #fff0f0;
