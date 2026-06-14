@@ -1,6 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./home.scss";
 import Layout from "../layout";
+
+const moveItem = (items, fromIndex, toIndex) => {
+  const nextItems = [...items];
+  const [movedItem] = nextItems.splice(fromIndex, 1);
+  nextItems.splice(toIndex, 0, movedItem);
+  return nextItems;
+};
 
 const Home = () => {
   const [videos, setVideos] = useState({});
@@ -33,6 +40,15 @@ const Home = () => {
 
   const [preview, setPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [draggingCategory, setDraggingCategory] = useState(null);
+  const [draggingVideoId, setDraggingVideoId] = useState(null);
+
+  const draggingCategoryRef = useRef(null);
+  const categoryOrderChangedRef = useRef(false);
+  const latestCategoryOrderRef = useRef([]);
+  const draggingVideoIdRef = useRef(null);
+  const videoOrderChangedRef = useRef(false);
+  const latestVideoOrderRef = useRef([]);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -61,6 +77,16 @@ const Home = () => {
   useEffect(() => {
     fetchVideos();
   }, []);
+
+  useEffect(() => {
+    latestCategoryOrderRef.current = categories;
+  }, [categories]);
+
+  useEffect(() => {
+    latestVideoOrderRef.current = (videos[activeCategory] || []).map(
+      (video) => video.id
+    );
+  }, [activeCategory, videos]);
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
@@ -221,6 +247,140 @@ const Home = () => {
     }
   };
 
+  const saveCategoryOrder = async () => {
+    try {
+      const res = await fetch("https://api.zulluai.com/api/categories/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories: latestCategoryOrderRef.current }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Category order saved");
+      } else {
+        showToast(data.msg || "Failed to save category order", "error");
+        fetchVideos();
+      }
+    } catch {
+      showToast("Failed to save category order", "error");
+      fetchVideos();
+    }
+  };
+
+  const handleCategoryDragStart = (e, category) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", category);
+    draggingCategoryRef.current = category;
+    categoryOrderChangedRef.current = false;
+    setDraggingCategory(category);
+  };
+
+  const handleCategoryDragOver = (e, targetCategory) => {
+    e.preventDefault();
+    const draggedCategory = draggingCategoryRef.current;
+
+    if (!draggedCategory || draggedCategory === targetCategory) return;
+
+    setCategories((prevCategories) => {
+      const fromIndex = prevCategories.indexOf(draggedCategory);
+      const toIndex = prevCategories.indexOf(targetCategory);
+
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return prevCategories;
+      }
+
+      const nextCategories = moveItem(prevCategories, fromIndex, toIndex);
+      latestCategoryOrderRef.current = nextCategories;
+      categoryOrderChangedRef.current = true;
+      return nextCategories;
+    });
+  };
+
+  const handleCategoryDragEnd = async () => {
+    setDraggingCategory(null);
+    draggingCategoryRef.current = null;
+
+    if (categoryOrderChangedRef.current) {
+      categoryOrderChangedRef.current = false;
+      await saveCategoryOrder();
+    }
+  };
+
+  const saveVideoOrder = async () => {
+    try {
+      const res = await fetch("https://api.zulluai.com/api/homeVideo/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: activeCategory,
+          videoIds: latestVideoOrderRef.current,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("Video order saved");
+      } else {
+        showToast(data.msg || "Failed to save video order", "error");
+        fetchVideos();
+      }
+    } catch {
+      showToast("Failed to save video order", "error");
+      fetchVideos();
+    }
+  };
+
+  const handleVideoDragStart = (e, videoId) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", videoId);
+    draggingVideoIdRef.current = videoId;
+    videoOrderChangedRef.current = false;
+    setDraggingVideoId(videoId);
+  };
+
+  const handleVideoDragOver = (e, targetVideoId) => {
+    e.preventDefault();
+    const draggedVideoId = draggingVideoIdRef.current;
+
+    if (!draggedVideoId || draggedVideoId === targetVideoId) return;
+
+    setVideos((prevVideos) => {
+      const currentVideos = prevVideos[activeCategory] || [];
+      const fromIndex = currentVideos.findIndex(
+        (video) => video.id === draggedVideoId
+      );
+      const toIndex = currentVideos.findIndex(
+        (video) => video.id === targetVideoId
+      );
+
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return prevVideos;
+      }
+
+      const nextVideosForCategory = moveItem(currentVideos, fromIndex, toIndex);
+      latestVideoOrderRef.current = nextVideosForCategory.map(
+        (video) => video.id
+      );
+      videoOrderChangedRef.current = true;
+
+      return {
+        ...prevVideos,
+        [activeCategory]: nextVideosForCategory,
+      };
+    });
+  };
+
+  const handleVideoDragEnd = async () => {
+    setDraggingVideoId(null);
+    draggingVideoIdRef.current = null;
+
+    if (videoOrderChangedRef.current) {
+      videoOrderChangedRef.current = false;
+      await saveVideoOrder();
+    }
+  };
+
   return (
     <Layout>
       <div className="home-page">
@@ -250,8 +410,15 @@ const Home = () => {
           {categories.map((cat) => (
             <div
               key={cat}
-              className={`tab-item ${activeCategory === cat ? "active" : ""}`}
+              draggable
+              onDragStart={(e) => handleCategoryDragStart(e, cat)}
+              onDragOver={(e) => handleCategoryDragOver(e, cat)}
+              onDragEnd={handleCategoryDragEnd}
+              className={`tab-item ${activeCategory === cat ? "active" : ""} ${
+                draggingCategory === cat ? "dragging" : ""
+              }`}
             >
+              <span className="drag-handle">Drag</span>
               <button onClick={() => setActiveCategory(cat)}>{cat}</button>
               <span
                 className="del-cat"
@@ -269,7 +436,17 @@ const Home = () => {
           <div className="video-grid">
             {videos[activeCategory]?.length > 0 ? (
               videos[activeCategory].map((vid) => (
-                <div className="video-card" key={vid.id}>
+                <div
+                  className={`video-card ${
+                    draggingVideoId === vid.id ? "dragging" : ""
+                  }`}
+                  key={vid.id}
+                  draggable
+                  onDragStart={(e) => handleVideoDragStart(e, vid.id)}
+                  onDragOver={(e) => handleVideoDragOver(e, vid.id)}
+                  onDragEnd={handleVideoDragEnd}
+                >
+                  <span className="card-drag-handle">Drag</span>
                   <video src={vid.videoUrl} controls />
                   <div className="info">
                     <h4>{vid.title}</h4>
