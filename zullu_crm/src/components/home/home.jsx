@@ -151,8 +151,8 @@ const Home = () => {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!form.file || !form.category || !form.title) {
-      return showToast("Fill all fields", "error");
+    if (!form.file || !form.category) {
+      return showToast("Please select category and video file", "error");
     }
 
     const formData = new FormData();
@@ -215,8 +215,8 @@ const Home = () => {
   const handleUpdateVideo = async (e) => {
     e.preventDefault();
 
-    if (!editForm.title.trim() || !editForm.category) {
-      return showToast("Title and category are required", "error");
+    if (!editForm.category) {
+      return showToast("Category is required", "error");
     }
 
     try {
